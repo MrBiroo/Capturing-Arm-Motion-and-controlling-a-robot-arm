@@ -53,12 +53,6 @@ Data flow (ASCII)
    |
 [ESP32 MC Node] --(UDP/Serial)-> [Control PC / Raspberry Pi] --(serial)-> [Motor Microcontrollers] -> [Motors]
 
-Photos / 3D renders (placeholders)
----------------------------------
-- docs/figures/pose_capture.jpg (placeholder)
-- docs/figures/arm_render.png (placeholder)
-- docs/cad/assembly.SLDPRT (placeholder)
-Replace placeholders by exporting renders / photos and committing them into docs/figures.
 
 Hardware list
 -------------
@@ -80,8 +74,6 @@ Software stack
   - Espressif ESP-IDF or Arduino for ESP32
   - Arduino/PlatformIO for motor controllers
   - SimpleFOC or custom FOC implementation (C/C++)
-- PC / prototyping:
-  - Python 3.8+ (numpy, scipy, pyserial, matplotlib)
 - CAD: SolidWorks (source CAD not included)
 - Version control: git (GitHub)
 
@@ -98,23 +90,6 @@ Motor control node:
 
 [Packet RX] -> [Joint mapping & IK] -> [FOC controllers per motor] -> [PWM drivers] -> [BLDC + gearbox] -> Feedback encoders -> [FOC]
 
-Installation
-------------
-Prerequisites
-- Git
-- Python 3.8+
-- pip packages: numpy, scipy, pyserial, matplotlib
-- ESP32 toolchain (ESP-IDF or Arduino ESP32)
-- Arduino IDE / PlatformIO for motor firmware
-
-Clone
-- git clone <your-repo-url>
-- cd <repo>
-
-Python environment (example)
-- python -m venv venv
-- source venv/bin/activate
-- pip install -r requirements.txt  # (create this file when you add real extras)
 
 How to run the motion-capture firmware (ESP32)
 ----------------------------------------------
