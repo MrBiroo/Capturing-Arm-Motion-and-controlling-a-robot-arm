@@ -14,7 +14,7 @@ Electronics
 - Motor driver boards: current sense, MOSFET stage, gate drivers, bootstrap circuits, and decoupling.
 - Power: separate power domains for logic and motor to reduce noise coupling.
 
-Placeholders (add your files here)
+Placeholders 
 ---------------------------------
 - /hardware/pcb/  — PCB schematics and gerbers or KiCad project
 - /hardware/sensor_mounts/  — STL or STEP for sensor housings
@@ -27,8 +27,3 @@ Testing & calibration
 - Motor calibration: measure phase resistance and inductance, encoder offsets, and torque constants.
 - Gearbox backlash measurement: measure free-play and document preloads or shimming required.
 
-Safety
-------
-- Mechanical stops on joints for emergency cut-offs
-- Thermal cut-out and motor temperature monitoring
-- Physical emergency-stop on the bench and software-level kill-switch
