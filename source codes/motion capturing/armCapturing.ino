@@ -1,76 +1,107 @@
+#include <esp_now.h>
+#include <WiFi.h>
+#include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
-#include <TCA9548.h>
+#include <math.h>
 
-#define NUM_IMUS 3 // Number of BNO055 modules
-#define MUX_ADDRESS 0x70 // Address of the PCA9548A multiplexer
-#define CHANNEL 1 // The same channel should be on both ESPs
-#define BNO055_ADDRESS 0x29 // I2C address of the BNO055 module
-#define BNO055_ID 0x55 // ID of the BNO055 module
+#define CHANNEL 1 //the same channel should be on both esps
+
+String startByte = "#";
+String destROLL[3] = {"A","D", "G"}; // Destination bytes for roll
+String destPITCH[3] = {"B","E","H"}; // Destination bytes for pitch
+String destYAW[3] = {"C","F","I"}; // Destination bytes for yaw
 
 /* Set the delay between fresh samples */
 uint16_t BNO055_SAMPLERATE_DELAY_MS = 100;
+Adafruit_BNO055 bno; // Declare an array of Adafruit_BNO055 objects
 
-TCA9548 mux = TCA9548(MUX_ADDRESS); // PCA9548A multiplexer object
+// MAC Address of responder - edit as required
+uint8_t broadcastAddress[] = {0x9C, 0x9C, 0x1F, 0xC7, 0x69, 0xEC}; //For the Dev kit 0x10, 0x06, 0x1C, 0xF6, 0x83, 0x78
+String data;
+esp_now_peer_info_t peerInfo;// Peer info
 
-Adafruit_BNO055 bno0 = Adafruit_BNO055(55, 0x29, &Wire);
-Adafruit_BNO055 bno1 = Adafruit_BNO055(55, 0x29, &Wire);
-Adafruit_BNO055 bno2 = Adafruit_BNO055(55, 0x29, &Wire);
-Adafruit_BNO055* bno[NUM_IMUS] = { &bno0, &bno1, &bno2 };
 
-String startByte = "#";
-String destROLL[3] = {"A", "D", "G"}; // Destination bytes for roll
-String destPITCH[3] = {"B", "E", "H"}; // Destination bytes for pitch
-String destYAW[3] = {"C", "F", "I"}; // Destination bytes for yaw
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200); // Set serial baud rate  
   Serial.println("Setup started");
-  while (!Serial) delay(10); // Wait for serial port to open
 
-  mux.begin(); // Initialize the PCA9548A multiplexer
+  ESPnow();
 
-  for (int i = 0; i < NUM_IMUS; i++) {
-    mux.selectChannel(i); // Select the I2C channel for the current BNO055 module
+  while (!Serial) delay(10);  // wait for serial port to open!
+
+   bno = Adafruit_BNO055(55, 0x29, &Wire);
     Serial.print("Initializing BNO055 ");
-    Serial.println(i);
+     if (!bno.begin())/* Initialise the sensor */
+    {
+     /* There was a problem detecting the BNO055 ... check your connections */
+     Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+     while (1);
+     }
+     bno.setExtCrystalUse(true);  
 
-    if (!bno[i]->begin()) { // Use the '->' operator for pointer access
-      Serial.print("Ooops, no BNO055 ");
-      Serial.print(i);
-      Serial.print(" detected ... Check your wiring or I2C ADDR!");
-
-      // Add a delay and retry mechanism to recover from faulty modules
-      delay(5000);
-      i--; // Retry the current module
-    } else {
-      /* Use external crystal for better accuracy */
-      bno[i]->setExtCrystalUse(true); // Use '->' to call setExtCrystalUse
-    }
-  }
-  delay(1000);
 }
 
+esp_err_t result;
 void loop() {
-  for (int i = 0; i < NUM_IMUS; i++) {
-    mux.selectChannel(i); // Select the I2C channel for the current BNO055 module
-    /* Get a new sensor event */
-    sensors_event_t event;
-    if (bno[i]->getEvent(&event)) { // Use '->' to call getEvent
-      float yaw = 360 - (float)event.orientation.x;
-      Serial.println(Packet(startByte, yaw, destYAW[i]));
+  /* Get a new sensor event */
+  sensors_event_t event;
+  bno.getEvent(&event);
 
-      float pitch = (float)event.orientation.y;
-      Serial.println(Packet(startByte, pitch, destPITCH[i]));
-
-      float roll = (float)event.orientation.z;
-      Serial.println(Packet(startByte, roll, destROLL[i]));
-    } else {
-      Serial.print("Error getting sensor event from BNO055 ");
-      Serial.println(i);
-    }
+  float yaw =  (float)event.orientation.x;
+  if (yaw < 0) {
+    yaw = -yaw;
+   } else if (yaw > 180) {
+    yaw -= 360;
   }
-  delay(BNO055_SAMPLERATE_DELAY_MS);
+
+  float pitch = (float)event.orientation.y;
+    
+
+  float roll = (float)event.orientation.z; 
+
+  Serial.println(Packet(startByte,pitch,"A"));
+  result = esp_now_send(broadcastAddress , (uint8_t*) &data, sizeof(data));
+  delay(100);
+
 }
+
+String Packet(String startBy, float VAL, String dest) {
+  String packet = "";
+  packet += String(startBy);
+  packet += String(dest);
+  packet += String(VAL, 2);
+  data=packet;
+  return data;
+}
+
+void OnDataSent(const uint8_t *mac_addr , esp_now_send_status_t status){
+  Serial.print("\r\nLast Packet Send Status: \t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+void ESPnow()
+{
+     WiFi.mode(WIFI_STA);
+  // Initialize ESP-NOW
+  if (esp_now_init() == ESP_OK) {
+    Serial.println("ESP-NOW initialized successfully");
+  } else {
+    Serial.println("Error initializing ESP-NOW");
+  }
+  // Register the send callback
+  esp_now_register_send_cb(OnDataSent);
+  //Register peer 
+  memcpy(peerInfo.peer_addr , broadcastAddress,6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+  //Add peer 
+  if(esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Fail to add peer!");
+  } else 
+  {
+    Serial.println("peer added successfully") ;
+  }
+} 
